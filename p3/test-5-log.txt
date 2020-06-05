@@ -1,0 +1,7 @@
+00:88:00:00:00|hey1|I want you to sing along with the 5th Dimension
+04:08:15:16:23|Lost|Hello there-Neighbor
+00:00:00:00:01|lost|Hello there, neighbor
+00:00:00:00:88|bluegrass|rock me momma like a southbound train
+00:00:00:00:66|jkl|timestamps are fun
+00:00:00:01:28|bluegrass|rock me momma like the wind and the rain
+00:00:00:00:66|kenobi|Hello there!

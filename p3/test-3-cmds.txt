@@ -1,0 +1,12 @@
+# Testing some stuff
+k hello there
+g
+k there hello
+g
+k junk
+g
+k junk.
+g
+k hello there neighbor
+g
+q
