@@ -1,5 +1,5 @@
 18 entries read
-% % Category search: 0 nibbas entries found
+% % Category search: 2 entries found
 % log entry 10 appended
 % 0|10|07:02:10:12:43|PGM|Beginning master election.
 % Keyword search: 2 entries found
