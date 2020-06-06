@@ -37,6 +37,12 @@ struct Entry {
 			return left.timestamp < right.timestamp;
 		}
 	};
+
+    struct stampOnly {
+        bool operator()(const Entry &left, const Entry &right) {
+            return left.timestamp < right.timestamp;
+        }
+    };
 };
 
 // Helper functions
@@ -83,7 +89,7 @@ void clearRecents(vector<int> &recents) {
 
 /*--------COMMAND FUNCTIONS--------*/
 
-void a(vector<Entry> &master, deque<int> &excerpts);
+void a(unordered_map<int, int> &ids, deque<int> &excerpts);
 void b(deque<int> &excerpts);
 void c(unordered_map<string, vector<int>> &cats, vector<int> &recents);
 void d(deque<int> &excerpts);
@@ -122,6 +128,7 @@ int main(int argc, char* argv[]) {
 	vector<Entry> master;
 	unordered_map<string, vector<int>> cats;
 	unordered_map<string, set<int>> kWords;
+    unordered_map<int, int> ids;
 	string entry;
 	int idCount = 0;
 
@@ -147,6 +154,7 @@ int main(int argc, char* argv[]) {
 
     for (size_t i = 0; i < master.size(); ++i) {
         cats[master[i].category].push_back(static_cast<int>(i));
+        ids[master[i].entryID] = static_cast<int>(i);
         for (auto k = master[i].keywords.begin(); k != master[i].keywords.end(); ++k) {
             kWords[*k].insert(static_cast<int>(i));
         }
@@ -167,7 +175,7 @@ int main(int argc, char* argv[]) {
 
 		switch (command) {
 		case 'a':
-			a(master, excerptList);
+			a(ids, excerptList);
 			break;
 		case 'b':
 			b(excerptList);
@@ -219,12 +227,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void a(vector<Entry> &master, deque<int> &excerpts) {
+void a(unordered_map<int, int> &ids, deque<int> &excerpts) {
 	size_t idx;
 	cin >> idx;
 
-	if (idx < master.size()) {
-		excerpts.push_back(static_cast<int>(idx));
+	if (idx < ids.size()) {
+		excerpts.push_back(ids[static_cast<int>(idx)]);
 		cout << "log entry " << idx << " appended\n";
     }
     else {
@@ -250,6 +258,7 @@ void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
+    //cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
 
 	toLower(cat);
 
@@ -409,7 +418,7 @@ void s(vector<Entry> &master, deque<int> &excerpts) {
 void t(vector<Entry> &master, vector<int> &recents) {
 	Entry dummy1;
 	Entry dummy2;
-	Entry::timeComp comp;
+	Entry::stampOnly comp;
 	string s1;
 	string s2;
 
@@ -430,7 +439,7 @@ void t(vector<Entry> &master, vector<int> &recents) {
 	dummy2.timestamp = stampCast(s2);
 
 	auto front = lower_bound(master.begin(), master.end(), dummy1, comp);
-	auto back = lower_bound(front, master.end(), dummy2, comp);
+	auto back = upper_bound(front, master.end(), dummy2, comp);
 
 	for (auto it = front; it != back; ++it) {
 		recents.push_back(static_cast<int>(it - master.begin()));
