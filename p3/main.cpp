@@ -37,18 +37,6 @@ struct Entry {
 			return left.timestamp < right.timestamp;
 		}
 	};
-
-	struct timeCompPtr {
-		bool operator()(const Entry *left, const Entry *right) {
-			if (left->timestamp == right->timestamp) {
-				if (left->category == right->category) {
-					return left->entryID < right->entryID;
-				}
-				return left->category < right->category;
-			}
-			return left->timestamp < right->timestamp;
-		}
-	};
 };
 
 // Helper functions
@@ -65,7 +53,7 @@ int long long stampCast(string stamp) {
 
 void toLower(string &input) {
 	for (size_t i = 0; i < input.length(); ++i) {
-		input[i] = tolower(input[i]);
+		input[i] = static_cast<char>(tolower(input[i]));
 	}
 }
 
@@ -88,21 +76,26 @@ vector<string> extractKeywords(string words) {
 	return keywords;
 }
 
+void clearRecents(vector<int> &recents) {
+    recents.clear();
+    recents.push_back(INT8_MAX);
+}
+
 /*--------COMMAND FUNCTIONS--------*/
 
-void a(unordered_map<int, Entry*> ids, deque<Entry*> &excerpts);
-void b(deque<Entry*> &excerpts);
-void c(unordered_map<string, vector<Entry*>> &cats, vector<Entry*> &recents);
-void d(deque<Entry*> &excerpts);
-void e(deque<Entry*> &excerpts);
-void g(vector<Entry*> &recents);
-void k(unordered_map<string, set<Entry*>> &keys, vector<Entry*> &recents);
-void l(deque<Entry*> &excerpts);
-void m(vector<Entry> &master, vector<Entry*> &recents);
-void p(deque<Entry*> &excerpts);
-void r(vector<Entry*> &recent, deque<Entry*> &excerpts);
-void s(deque<Entry*> &excerpts);
-void t(vector<Entry> &master, vector<Entry*> &recents);
+void a(vector<Entry> &master, deque<int> &excerpts);
+void b(deque<int> &excerpts);
+void c(unordered_map<string, vector<int>> &cats, vector<int> &recents);
+void d(deque<int> &excerpts);
+void e(deque<int> &excerpts);
+void g(vector<Entry> &master, vector<int> &recents);
+void k(unordered_map<string, set<int>> &keys, vector<int> &recents);
+void l(vector<Entry> &master, deque<int> &excerpts);
+void m(vector<Entry> &master, vector<int> &recents);
+void p(vector<Entry> &master, deque<int> &excerpts);
+void r(vector<int> &recent, deque<int> &excerpts);
+void s(vector<Entry> &master, deque<int> &excerpts);
+void t(vector<Entry> &master, vector<int> &recents);
 
 /*---------------------------------*/
 
@@ -127,10 +120,8 @@ int main(int argc, char* argv[]) {
 
 	ifstream logFile;
 	vector<Entry> master;
-	unordered_map<string, vector<Entry*>> cats;
-	unordered_map<string, set<Entry*>> kWords;
-	unordered_map<int, Entry*> ids;
-	//unordered_map<string, vector<
+	unordered_map<string, vector<int>> cats;
+	unordered_map<string, set<int>> kWords;
 	string entry;
 	int idCount = 0;
 
@@ -141,45 +132,42 @@ int main(int argc, char* argv[]) {
 		int long long timestamp = stampCast(entry.substr(0, 14));
 		size_t line = entry.find('|', 15);
 		string category = entry.substr(15, line - 15);
-		vector<string> keywords = extractKeywords(entry.substr(line, entry.length()));	
-
-		toLower(category);
-		keywords.push_back(category);
+        toLower(category);
+        vector<string> keywords = extractKeywords(entry.substr(15, entry.length())); // the entry.length() might be wrong
 
 		Entry curr(keywords, category, fullEntry, timestamp, idCount++);
 		master.push_back(curr);
 	} // while
 
 	logFile.close();
-
-	// Populate auxiliary containers
-	for (size_t i = 0; i < master.size(); ++i) {
-		ids[master[i].entryID] = &master[i];
-		cats[master[i].category].push_back(&master[i]);
-		for (auto k = master[i].keywords.begin(); k != master[i].keywords.end(); ++k) {
-			kWords[*k].insert(&master[i]);
-		}
-	}
+	
 
 	Entry::timeComp comp;
 	sort(master.begin(), master.end(), comp);
 
+    for (size_t i = 0; i < master.size(); ++i) {
+        cats[master[i].category].push_back(static_cast<int>(i));
+        for (auto k = master[i].keywords.begin(); k != master[i].keywords.end(); ++k) {
+            kWords[*k].insert(static_cast<int>(i));
+        }
+    }
+
+    cout << master.size() << " entries read\n";
+
 	/*---------------------------------*/
 	/*--------COMMAND LOOP--------*/
 
-	vector<Entry*> recentSearch;
-	deque<Entry*> excerptList;
+	vector<int> recentSearch;
+	deque<int> excerptList;
 	string param;
 	char command;
 	do {
 		cout << "% ";
-		cin >> param;
-		command = param[0];
-		param.erase(param.begin());
+		cin >> command;
 
 		switch (command) {
 		case 'a':
-			a(ids, excerptList);
+			a(master, excerptList);
 			break;
 		case 'b':
 			b(excerptList);
@@ -194,25 +182,25 @@ int main(int argc, char* argv[]) {
 			e(excerptList);
 			break;
 		case 'g':
-			g(recentSearch);
+			g(master, recentSearch);
 			break;
 		case 'k':
 			k(kWords, recentSearch);
 			break;
 		case 'l':
-			l(excerptList);
+			l(master, excerptList);
 			break;
 		case 'm':
 			m(master, recentSearch);
 			break;
 		case 'p':
-			p(excerptList);
+			p(master, excerptList);
 			break;
 		case 'r':
 			r(recentSearch, excerptList);
 			break;
 		case 's':
-			s(excerptList);
+			s(master, excerptList);
 			break;
 		case 't':
 			t(master, recentSearch);
@@ -231,17 +219,20 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-void a(unordered_map<int, Entry*> ids, deque<Entry*> &excerpts) {
+void a(vector<Entry> &master, deque<int> &excerpts) {
 	size_t idx;
 	cin >> idx;
 
-	if (idx < ids.size()) {
-		excerpts.push_back(ids[idx]);
+	if (idx < master.size()) {
+		excerpts.push_back(static_cast<int>(idx));
 		cout << "log entry " << idx << " appended\n";
-	}
+    }
+    else {
+        cerr << "Index out of range\n";
+    }
 }
 
-void b(deque<Entry*> &excerpts) {
+void b(deque<int> &excerpts) {
 	size_t idx;
 	cin >> idx;
 
@@ -250,34 +241,50 @@ void b(deque<Entry*> &excerpts) {
 		excerpts.erase(excerpts.begin() + idx);
 		cout << "Moved excerpt list entry " << --idx << "\n";
 	}
+    else {
+        cerr << "Index out of range\n";
+    }
 }
 
-void c(unordered_map<string, vector<Entry*>> &cats, vector<Entry*> &recents) {
+void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
 	string cat;
-	cin >> cat;
+    getline(cin, cat);
+    cat.erase(0, 1);
 
 	toLower(cat);
 
-	if (!recents.empty()) recents.clear();
+	clearRecents(recents);
 
-	for (size_t i = 0; i < cats.at(cat).size(); ++i) {
-		recents.push_back(cats.at(cat)[i]);
-	}
+    cout << "Category search: ";
 
-	cout << "Category search: " << cats.at(cat).size() << " entries found\n";
+    if (cats.find(cat) != cats.end()) {
+        for (size_t i = 0; i < cats.at(cat).size(); ++i) {
+            recents.push_back(cats.at(cat)[i]);
+        }
+
+        cout << cats.at(cat).size();
+    }
+    else {
+        cout << "0";
+    }
+
+    cout << " entries found\n";
 }
 
-void d(deque<Entry*> &excerpts) {
+void d(deque<int> &excerpts) {
 	size_t idx;
 	cin >> idx;
 
 	if (idx < excerpts.size()) {
 		excerpts.erase(excerpts.begin() + idx);
-		cout << "Deleted excerpt list " << idx << "\n";
-	}
+		cout << "Deleted excerpt list entry " << idx << "\n";
+    }
+    else {
+        cerr << "Index out of range\n";
+    }
 }
 
-void e(deque<Entry*> &excerpts) {
+void e(deque<int> &excerpts) {
 	size_t idx;
 	cin >> idx;
 
@@ -286,28 +293,36 @@ void e(deque<Entry*> &excerpts) {
 		excerpts.erase(excerpts.begin() + idx);
 		cout << "Moved excerpt list entry " << idx << "\n";
 	}
+    else {
+        cerr << "Index out of range\n";
+    }
 }
 
-void g(vector<Entry*> &recents) {
+void g(vector<Entry> &master, vector<int> &recents) {
 	if (!recents.empty()) {
-		for (size_t i = 0; i < recents.size(); ++i) {
-			cout << recents[i]->fullEntry << "\n";
+		for (size_t i = 1; i < recents.size(); ++i) {
+			cout << master[recents[i]].fullEntry << "\n";
 		}
 	}
+    else {
+        cerr << "No recent searches\n";
+    }
 }
 
-void k(unordered_map<string, set<Entry*>> &keys, vector<Entry*> &recents) {
+void k(unordered_map<string, set<int>> &keys, vector<int> &recents) {
 	string input;
 	getline(cin, input);
 	toLower(input);
 
-	if (!recents.empty()) recents.clear();
+	clearRecents(recents);
 
 	vector<string> keywords = extractKeywords(input);
-	set<Entry*> matches(keys[keywords[0]]);
+	set<int> matches(keys[keywords[0]]);
 
 	for (size_t i = 1; i < keywords.size(); ++i) {
-		set_intersection(matches.begin(), matches.end(), keys[keywords[i]].begin(), keys[keywords[i]].end(), inserter(matches, matches.begin()));
+        set<int> result;
+		set_intersection(matches.begin(), matches.end(), keys[keywords[i]].begin(), keys[keywords[i]].end(), inserter(result, result.begin()));
+        matches = result;
 	}
 
 	for (auto it = matches.begin(); it != matches.end(); ++it) {
@@ -317,20 +332,26 @@ void k(unordered_map<string, set<Entry*>> &keys, vector<Entry*> &recents) {
 	cout << "Keyword search: " << matches.size() << " entries found\n";
 }
 
-void l(deque<Entry*> &excerpts) {
+void l(vector<Entry> &master, deque<int> &excerpts) {
 	cout << "excerpt list cleared\n";
-	if (excerpts.size() == 0) cout << "(previously empty)\n";
+	if (excerpts.empty()) cout << "(previously empty)\n";
 	else {
-		cout << "0|" << excerpts.front()->fullEntry << "\n"; // Not sure if newline needed here or not
-		cout << "...\n" << excerpts.size() - 1 << "|" << excerpts.back()->fullEntry << "\n";
+        cout << "previous contents:\n";
+		cout << "0|" << master[excerpts.front()].fullEntry << "\n";
+		cout << "...\n" << excerpts.size() - 1 << "|" << master[excerpts.back()].fullEntry << "\n";
 
 		excerpts.clear();
 	}
 }
 
-void m(vector<Entry> &master, vector<Entry*> &recents) {
+void m(vector<Entry> &master, vector<int> &recents) {
 	string stamp;
 	cin >> stamp;
+
+    if (stamp.length() != 14) {
+        cerr << "Invalid timestamp\n";
+        return;
+    }
 
 	int long long ts = stampCast(stamp);
 	Entry hi;
@@ -339,46 +360,53 @@ void m(vector<Entry> &master, vector<Entry*> &recents) {
 
 	auto it = lower_bound(master.begin(), master.end(), hi, comp);
 
-	if (!recents.empty()) recents.clear();
+	clearRecents(recents);
 
 	int count = 0;
 	while ((*it).timestamp == ts) {
-		recents.push_back(&(*it++));
+		recents.push_back(static_cast<int>(it++ - master.begin()));
 		++count;
 	}
 
 	cout << "Timestamp search: " << count << " entries found\n";
 }
 
-void p(deque<Entry*> &excerpts) {
+void p(vector<Entry> &master, deque<int> &excerpts) {
 	for (size_t i = 0; i < excerpts.size(); ++i) {
-		cout << i << "|" << excerpts[i]->fullEntry << "\n";
+		cout << i << "|" << master[excerpts[i]].fullEntry << "\n";
 	}
 }
 
-void r(vector<Entry*> &recent, deque<Entry*> &excerpts) {
-	for (size_t i = 0; i < recent.size(); ++i) {
-		excerpts.push_back(recent[i]);
-	}
+void r(vector<int> &recent, deque<int> &excerpts) {
+
+    if (!recent.empty()) {
+        for (size_t i = 1; i < recent.size(); ++i) {
+            excerpts.push_back(recent[i]);
+        }
+
+        cout << recent.size() - 1 << " log entries appended\n";
+    }
+    else {
+        cerr << "No recents searches\n";
+    }
 }
 
-void s(deque<Entry*> &excerpts) {
-	Entry::timeCompPtr comp;
+void s(vector<Entry> &master, deque<int> &excerpts) {
 
 	cout << "excerpt list sorted\n";
 	if (excerpts.empty()) cout << "(previously empty)\n";
 	else {
 		cout << "previous ordering:\n";
-		cout << "0|" << excerpts.front()->fullEntry << "\n";
-		cout << "...\n" << excerpts.size() - 1 << "|" << excerpts.back()->fullEntry << "\n";
-		sort(excerpts.begin(), excerpts.end(), comp);
+		cout << "0|" << master[excerpts.front()].fullEntry << "\n";
+		cout << "...\n" << excerpts.size() - 1 << "|" << master[excerpts.back()].fullEntry << "\n";
+		sort(excerpts.begin(), excerpts.end());
 		cout << "new ordering:\n";
-		cout << "0|" << excerpts.front()->fullEntry << "\n";
-		cout << "...\n" << excerpts.size() - 1 << "|" << excerpts.back()->fullEntry << "\n";
+		cout << "0|" << master[excerpts.front()].fullEntry << "\n";
+		cout << "...\n" << excerpts.size() - 1 << "|" << master[excerpts.back()].fullEntry << "\n";
 	}
 }
 
-void t(vector<Entry> &master, vector<Entry*> &recents) {
+void t(vector<Entry> &master, vector<int> &recents) {
 	Entry dummy1;
 	Entry dummy2;
 	Entry::timeComp comp;
@@ -392,7 +420,7 @@ void t(vector<Entry> &master, vector<Entry*> &recents) {
 		return;
 	}
 	else {
-		if (!recents.empty()) recents.clear(); // Will need to check if this is slow or not
+        clearRecents(recents);
 	}
 
 	s2 = s1.substr(15, 14);
@@ -405,9 +433,8 @@ void t(vector<Entry> &master, vector<Entry*> &recents) {
 	auto back = lower_bound(front, master.end(), dummy2, comp);
 
 	for (auto it = front; it != back; ++it) {
-		Entry* add = &(*it);
-		recents.push_back(add);
+		recents.push_back(static_cast<int>(it - master.begin()));
 	}
 
-	cout << "Timestamp search: " << recents.size() << " entries found\n";
+	cout << "Timestamps search: " << recents.size() - 1 << " entries found\n";
 }
