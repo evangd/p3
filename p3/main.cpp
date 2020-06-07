@@ -258,7 +258,7 @@ void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
-    //cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
+    cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
 
 	toLower(cat);
 
