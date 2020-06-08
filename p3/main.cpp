@@ -106,7 +106,7 @@ void c(unordered_map<string, vector<int>> &cats, Recent &recents);
 void d(deque<int> &excerpts);
 void e(deque<int> &excerpts);
 void g(vector<Entry> &master, Recent &recents);
-void k(unordered_map<string, set<int>> &keys, Recent &recents);
+void k(unordered_map<string, vector<int>> &keys, Recent &recents);
 void l(vector<Entry> &master, deque<int> &excerpts);
 void m(vector<Entry> &master, Recent &recents);
 void p(vector<Entry> &master, deque<int> &excerpts);
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
 	ifstream logFile;
 	vector<Entry> master;
 	unordered_map<string, vector<int>> cats;
-	unordered_map<string, set<int>> kWords;
+	unordered_map<string, vector<int>> kWords;
     unordered_map<int, int> ids;
 	string entry;
 	int idCount = 0;
@@ -165,7 +165,11 @@ int main(int argc, char* argv[]) {
         ids[master[i].entryID] = static_cast<int>(i);
         vector<string> keywords = extractKeywords(master[i].fullEntry.substr(17, master[i].fullEntry.length()));
         for (auto it = keywords.begin(); it != keywords.end(); ++it) {
-            kWords[*it].insert(static_cast<int>(i));
+                kWords[*it].push_back(static_cast<int>(i));
+                // Hopefully this doesn't slow things down too much. Otherwise might have to add a set to the Recent struct
+                if (kWords[*it].size() > 1) {
+                    if (kWords[*it][kWords[*it].size() - 1] == kWords[*it][kWords[*it].size() - 2]) kWords[*it].pop_back();
+                }
         }
     }
 
@@ -267,7 +271,7 @@ void c(unordered_map<string, vector<int>> &cats, Recent &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
-    //cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
+    cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
 
 	toLower(cat);
 
@@ -279,7 +283,7 @@ void c(unordered_map<string, vector<int>> &cats, Recent &recents) {
 		recents.words.push_back(cats.at(cat).begin());
 		recents.words.push_back(cats.at(cat).end());
 
-		cout << cats.at(cat).begin() - cats.at(cat).end();
+		cout << cats.at(cat).end() - cats.at(cat).begin();
     }
     else {
         cout << "0";
@@ -333,7 +337,7 @@ void g(vector<Entry> &master, Recent &recents) {
     }
 }
 
-void k(unordered_map<string, set<int>> &keys, Recent &recents) {
+void k(unordered_map<string, vector<int>> &keys, Recent &recents) {
 	string input;
 	getline(cin, input);
 	toLower(input);
@@ -341,18 +345,21 @@ void k(unordered_map<string, set<int>> &keys, Recent &recents) {
 	recents.clear();
 
 	vector<string> keywords = extractKeywords(input);
-	set<int> matches(keys[keywords[0]]);
+	vector<int> matches(keys.at(keywords[0]));
 
 	for (size_t i = 1; i < keywords.size(); ++i) {
-		if (matches.empty()) return;
-        set<int> result;
-		set_intersection(matches.begin(), matches.end(), keys[keywords[i]].begin(), keys[keywords[i]].end(), inserter(result, result.begin()));
+        if (matches.empty()) break;
+        vector<int> result;
+		set_intersection(matches.begin(), matches.end(), keys.at(keywords[i]).begin(), keys.at(keywords[i]).end(), inserter(result, result.begin()));
         matches = result;
 	}
 
-	//recents.words.push_back(matches.begin());
+	recents.words.push_back(matches.begin());
+    recents.words.push_back(matches.end());
 
 	cout << "Keyword search: " << matches.size() << " entries found\n";
+    recents.lastWasTimes = false;
+    recents.prevSearch = true;
 }
 
 void l(vector<Entry> &master, deque<int> &excerpts) {
@@ -378,7 +385,7 @@ void m(vector<Entry> &master, Recent &recents) {
 
 	int long long ts = stampCast(stamp);
 	Entry hi;
-	Entry::timeComp comp;
+	Entry::stampOnly comp;
 	hi.timestamp = ts;
 
 	auto front = lower_bound(master.begin(), master.end(), hi, comp);
@@ -405,7 +412,7 @@ void r(vector<Entry> &master, Recent &recents, deque<int> &excerpts) {
 	if (recents.prevSearch) {
 		if (recents.lastWasTimes) {
 			for (auto it = recents.times[0]; it != recents.times[1]; ++it) {
-				excerpts.push_back(it - master.begin());
+				excerpts.push_back(static_cast<int>(it - master.begin()));
 			}
 
 			cout << recents.times[1] - recents.times[0] << " log entries appended\n";
