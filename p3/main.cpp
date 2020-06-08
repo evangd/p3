@@ -44,6 +44,19 @@ struct Entry {
     };
 };
 
+// Recent struct
+struct Recent {
+	vector<vector<Entry>::iterator> times;
+	vector<vector<int>::iterator> words;
+	bool lastWasTimes;
+	bool prevSearch = false; // Set to true at the end of every command that adds things to recents
+
+	void clear() {
+		times.clear();
+		words.clear();
+	}
+};
+
 // Helper functions
 
 bool isColon(char i) {
@@ -85,32 +98,26 @@ vector<string> extractKeywords(string words) {
 	return keywords;
 }
 
-void clearRecents(vector<int> &recents) {
-    recents.clear();
-    recents.push_back(INT8_MAX);
-}
-
 /*--------COMMAND FUNCTIONS--------*/
 
 void a(unordered_map<int, int> &ids, deque<int> &excerpts);
 void b(deque<int> &excerpts);
-void c(unordered_map<string, vector<int>> &cats, vector<int> &recents);
+void c(unordered_map<string, vector<int>> &cats, Recent &recents);
 void d(deque<int> &excerpts);
 void e(deque<int> &excerpts);
-void g(vector<Entry> &master, vector<int> &recents);
-void k(unordered_map<string, set<int>> &keys, vector<int> &recents);
+void g(vector<Entry> &master, Recent &recents);
+void k(unordered_map<string, set<int>> &keys, Recent &recents);
 void l(vector<Entry> &master, deque<int> &excerpts);
-void m(vector<Entry> &master, vector<int> &recents);
+void m(vector<Entry> &master, Recent &recents);
 void p(vector<Entry> &master, deque<int> &excerpts);
-void r(vector<int> &recent, deque<int> &excerpts);
+void r(vector<Entry> &master, Recent &recents, deque<int> &excerpts);
 void s(vector<Entry> &master, deque<int> &excerpts);
-void t(vector<Entry> &master, vector<int> &recents);
+void t(vector<Entry> &master, Recent &recents);
 
 /*---------------------------------*/
 
 int main(int argc, char* argv[]) {
-	std::ios_base::sync_with_stdio(false);
-	// Process command line
+	std::ios_base::sync_with_stdio(false);	// Process command line
 	string file;
 
 	if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
@@ -167,7 +174,7 @@ int main(int argc, char* argv[]) {
 	/*---------------------------------*/
 	/*--------COMMAND LOOP--------*/
 
-	vector<int> recentSearch;
+	Recent recents;
 	deque<int> excerptList;
 	string param;
 	char command;
@@ -183,7 +190,7 @@ int main(int argc, char* argv[]) {
 			b(excerptList);
 			break;
 		case 'c':
-			c(cats, recentSearch);
+			c(cats, recents);
 			break;
 		case 'd':
 			d(excerptList);
@@ -192,28 +199,28 @@ int main(int argc, char* argv[]) {
 			e(excerptList);
 			break;
 		case 'g':
-			g(master, recentSearch);
+			g(master, recents);
 			break;
 		case 'k':
-			k(kWords, recentSearch);
+			k(kWords, recents);
 			break;
 		case 'l':
 			l(master, excerptList);
 			break;
 		case 'm':
-			m(master, recentSearch);
+			m(master, recents);
 			break;
 		case 'p':
 			p(master, excerptList);
 			break;
 		case 'r':
-			r(recentSearch, excerptList);
+			r(master, recents, excerptList);
 			break;
 		case 's':
 			s(master, excerptList);
 			break;
 		case 't':
-			t(master, recentSearch);
+			t(master, recents);
 			break;
 		case '#':
 			getline(cin, param);
@@ -256,7 +263,7 @@ void b(deque<int> &excerpts) {
     }
 }
 
-void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
+void c(unordered_map<string, vector<int>> &cats, Recent &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
@@ -264,22 +271,23 @@ void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
 
 	toLower(cat);
 
-	clearRecents(recents);
+	recents.clear();
 
     cout << "Category search: ";
 
     if (cats.find(cat) != cats.end()) {
-        for (size_t i = 0; i < cats.at(cat).size(); ++i) {
-            recents.push_back(cats.at(cat)[i]);
-        }
+		recents.words.push_back(cats.at(cat).begin());
+		recents.words.push_back(cats.at(cat).end());
 
-        cout << cats.at(cat).size();
+		cout << cats.at(cat).begin() - cats.at(cat).end();
     }
     else {
         cout << "0";
     }
 
     cout << " entries found\n";
+	recents.lastWasTimes = false;
+	recents.prevSearch = true;
 }
 
 void d(deque<int> &excerpts) {
@@ -309,10 +317,15 @@ void e(deque<int> &excerpts) {
     }
 }
 
-void g(vector<Entry> &master, vector<int> &recents) {
-	if (!recents.empty()) {
-		for (size_t i = 1; i < recents.size(); ++i) {
-			cout << master[recents[i]].fullEntry << "\n";
+void g(vector<Entry> &master, Recent &recents) {
+	if (!recents.times.empty()) {
+		for (auto it = recents.times[0]; it != recents.times[1]; ++it) {
+			cout << it->fullEntry << "\n";
+		}
+	}
+	else if (!recents.words.empty()) {
+		for (auto it = recents.words[0]; it != recents.words[1]; ++it) {
+			cout << master[*it].fullEntry << "\n";
 		}
 	}
     else {
@@ -320,25 +333,24 @@ void g(vector<Entry> &master, vector<int> &recents) {
     }
 }
 
-void k(unordered_map<string, set<int>> &keys, vector<int> &recents) {
+void k(unordered_map<string, set<int>> &keys, Recent &recents) {
 	string input;
 	getline(cin, input);
 	toLower(input);
 
-	clearRecents(recents);
+	recents.clear();
 
 	vector<string> keywords = extractKeywords(input);
 	set<int> matches(keys[keywords[0]]);
 
 	for (size_t i = 1; i < keywords.size(); ++i) {
+		if (matches.empty()) return;
         set<int> result;
 		set_intersection(matches.begin(), matches.end(), keys[keywords[i]].begin(), keys[keywords[i]].end(), inserter(result, result.begin()));
         matches = result;
 	}
 
-	for (auto it = matches.begin(); it != matches.end(); ++it) {
-		recents.push_back(*it);
-	}
+	//recents.words.push_back(matches.begin());
 
 	cout << "Keyword search: " << matches.size() << " entries found\n";
 }
@@ -355,7 +367,7 @@ void l(vector<Entry> &master, deque<int> &excerpts) {
 	}
 }
 
-void m(vector<Entry> &master, vector<int> &recents) {
+void m(vector<Entry> &master, Recent &recents) {
 	string stamp;
 	cin >> stamp;
 
@@ -369,17 +381,17 @@ void m(vector<Entry> &master, vector<int> &recents) {
 	Entry::timeComp comp;
 	hi.timestamp = ts;
 
-	auto it = lower_bound(master.begin(), master.end(), hi, comp);
+	auto front = lower_bound(master.begin(), master.end(), hi, comp);
+	auto back = upper_bound(master.begin(), master.end(), hi, comp);
 
-	clearRecents(recents);
+	recents.clear();
+	
+	recents.times.push_back(front);
+	recents.times.push_back(back);
 
-	int count = 0;
-	while ((*it).timestamp == ts) {
-		recents.push_back(static_cast<int>(it++ - master.begin()));
-		++count;
-	}
-
-	cout << "Timestamp search: " << count << " entries found\n";
+	cout << "Timestamp search: " << back - front << " entries found\n";
+	recents.lastWasTimes = true;
+	recents.prevSearch = true;
 }
 
 void p(vector<Entry> &master, deque<int> &excerpts) {
@@ -388,15 +400,24 @@ void p(vector<Entry> &master, deque<int> &excerpts) {
 	}
 }
 
-void r(vector<int> &recent, deque<int> &excerpts) {
+void r(vector<Entry> &master, Recent &recents, deque<int> &excerpts) {
 
-    if (!recent.empty()) {
-        for (size_t i = 1; i < recent.size(); ++i) {
-            excerpts.push_back(recent[i]);
-        }
+	if (recents.prevSearch) {
+		if (recents.lastWasTimes) {
+			for (auto it = recents.times[0]; it != recents.times[1]; ++it) {
+				excerpts.push_back(it - master.begin());
+			}
 
-        cout << recent.size() - 1 << " log entries appended\n";
-    }
+			cout << recents.times[1] - recents.times[0] << " log entries appended\n";
+		}
+		else {
+			for (auto it = recents.words[0]; it != recents.words[1]; ++it) {
+				excerpts.push_back(*it);
+			}
+
+			cout << recents.words[1] - recents.words[0] << " log entries appended\n";
+		}
+	}
     else {
         cerr << "No recents searches\n";
     }
@@ -417,8 +438,9 @@ void s(vector<Entry> &master, deque<int> &excerpts) {
 	}
 }
 
-void t(vector<Entry> &master, vector<int> &recents) {
-	Entry dummy;
+void t(vector<Entry> &master, Recent &recents) {
+	Entry dummy1;
+	Entry dummy2;
 	Entry::stampOnly comp;
 	string s;
 
@@ -429,17 +451,19 @@ void t(vector<Entry> &master, vector<int> &recents) {
 		return;
 	}
     else {
-        clearRecents(recents);
+		recents.clear();
     }
 
-	dummy.timestamp = stampCast(s.substr(0, 14));
-	int long long upper = stampCast(s.substr(15, 14));
+	dummy1.timestamp = stampCast(s.substr(0, 14));
+	dummy2.timestamp = stampCast(s.substr(15, 14));
 
-	auto front = lower_bound(master.begin(), master.end(), dummy, comp);
+	auto front = lower_bound(master.begin(), master.end(), dummy1, comp);
+	auto back = upper_bound(front, master.end(), dummy2, comp);
 
-	while (front != master.end() && front->timestamp <= upper) {
-		recents.push_back(static_cast<int>(front++ - master.begin()));
-	}
+	recents.times.push_back(front);
+	recents.times.push_back(back);
 
-	cout << "Timestamps search: " << recents.size() - 1 << " entries found\n";
+	cout << "Timestamps search: " << back - front << " entries found\n";
+	recents.lastWasTimes = true;
+	recents.prevSearch = true;
 }
