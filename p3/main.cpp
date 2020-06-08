@@ -16,13 +16,12 @@ using namespace std;
 // Entry struct
 
 struct Entry {
-	vector<string> keywords;
 	string category;
 	string fullEntry;
 	int long long timestamp;
 	int entryID;
 
-	Entry(vector<string> keys, string cat, string full, int long long timestamp, int entryID) : keywords(keys), category(cat), fullEntry(full), timestamp(timestamp), entryID(entryID) {}
+	Entry(string cat, string full, int long long timestamp, int entryID) : category(cat), fullEntry(full), timestamp(timestamp), entryID(entryID) {}
 
 	Entry() {}
 
@@ -64,21 +63,25 @@ void toLower(string &input) {
 }
 
 vector<string> extractKeywords(string words) {
+    vector<string> keywords;
+    size_t wordStart = SIZE_MAX;
 	for (size_t i = 0; i < words.length(); ++i) {
-		if (!isalnum(words[i])) words[i] = ' ';
+        if (isalnum(words[i])) {
+            if (wordStart == SIZE_MAX) wordStart = i;
+            words[i] = static_cast<char>(tolower(words[i]));
+        }
+        else {
+            if (wordStart != SIZE_MAX) {
+                keywords.push_back(words.substr(wordStart, i - wordStart));
+                wordStart = SIZE_MAX;
+            }
+        }
 	}
 
-	toLower(words);
-
-	stringstream keys;
-	string keyword;
-	vector<string> keywords;
-	keys << words;
-
-	while (keys >> keyword) {
-		keywords.push_back(keyword);
-	}
-
+    if (wordStart != SIZE_MAX) {
+        keywords.push_back(words.substr(wordStart, words.length() - wordStart));
+    }
+    
 	return keywords;
 }
 
@@ -140,10 +143,8 @@ int main(int argc, char* argv[]) {
 		size_t line = entry.find('|', 15);
 		string category = entry.substr(15, line - 15);
         toLower(category);
-        vector<string> keywords = extractKeywords(entry.substr(15, entry.length())); // the entry.length() might be wrong
 
-		Entry curr(keywords, category, fullEntry, timestamp, idCount++);
-		master.push_back(curr);
+		master.emplace_back(category, fullEntry, timestamp, idCount++);
 	} // while
 
 	logFile.close();
@@ -155,8 +156,9 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < master.size(); ++i) {
         cats[master[i].category].push_back(static_cast<int>(i));
         ids[master[i].entryID] = static_cast<int>(i);
-        for (auto k = master[i].keywords.begin(); k != master[i].keywords.end(); ++k) {
-            kWords[*k].insert(static_cast<int>(i));
+        vector<string> keywords = extractKeywords(master[i].fullEntry.substr(17, master[i].fullEntry.length()));
+        for (auto it = keywords.begin(); it != keywords.end(); ++it) {
+            kWords[*it].insert(static_cast<int>(i));
         }
     }
 
@@ -258,7 +260,7 @@ void c(unordered_map<string, vector<int>> &cats, vector<int> &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
-    cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
+    //cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
 
 	toLower(cat);
 
@@ -416,33 +418,27 @@ void s(vector<Entry> &master, deque<int> &excerpts) {
 }
 
 void t(vector<Entry> &master, vector<int> &recents) {
-	Entry dummy1;
-	Entry dummy2;
+	Entry dummy;
 	Entry::stampOnly comp;
-	string s1;
-	string s2;
+	string s;
 
-	cin >> s1;
+	cin >> s;
 
-	if (s1.length() != 29 || s1[14] != '|') {
+	if (s.length() != 29 || s[14] != '|') {
 		cerr << "Well shit, timeRange input isn't good!"; // Not sure if I'm supposed to exit or not
 		return;
 	}
-	else {
+    else {
         clearRecents(recents);
-	}
+    }
 
-	s2 = s1.substr(15, 14);
-	s1 = s1.substr(0, 14);
+	dummy.timestamp = stampCast(s.substr(0, 14));
+	int long long upper = stampCast(s.substr(15, 14));
 
-	dummy1.timestamp = stampCast(s1);
-	dummy2.timestamp = stampCast(s2);
+	auto front = lower_bound(master.begin(), master.end(), dummy, comp);
 
-	auto front = lower_bound(master.begin(), master.end(), dummy1, comp);
-	auto back = upper_bound(front, master.end(), dummy2, comp);
-
-	for (auto it = front; it != back; ++it) {
-		recents.push_back(static_cast<int>(it - master.begin()));
+	while (front != master.end() && front->timestamp <= upper) {
+		recents.push_back(static_cast<int>(front++ - master.begin()));
 	}
 
 	cout << "Timestamps search: " << recents.size() - 1 << " entries found\n";
