@@ -48,12 +48,14 @@ struct Entry {
 struct Recent {
 	vector<vector<Entry>::iterator> times;
 	vector<vector<int>::iterator> words;
+    vector<int> keyIdxs;
 	bool lastWasTimes;
 	bool prevSearch = false; // Set to true at the end of every command that adds things to recents
 
 	void clear() {
 		times.clear();
 		words.clear();
+        keyIdxs.clear();
 	}
 };
 
@@ -271,7 +273,7 @@ void c(unordered_map<string, vector<int>> &cats, Recent &recents) {
 	string cat;
     getline(cin, cat);
     cat.erase(0, 1);
-    cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
+    //cat.erase(cat.length() - 1, 1); // This line is for redirecting in command line
 
 	toLower(cat);
 
@@ -345,19 +347,24 @@ void k(unordered_map<string, vector<int>> &keys, Recent &recents) {
 	recents.clear();
 
 	vector<string> keywords = extractKeywords(input);
-	vector<int> matches(keys.at(keywords[0]));
+    if (keys.find(keywords[0]) != keys.end()) {
+        recents.keyIdxs = keys.at(keywords[0]);
+    }
 
 	for (size_t i = 1; i < keywords.size(); ++i) {
-        if (matches.empty()) break;
+        if (keys.find(keywords[i]) == keys.end()) {
+            recents.keyIdxs.clear();
+            break;
+        }
         vector<int> result;
-		set_intersection(matches.begin(), matches.end(), keys.at(keywords[i]).begin(), keys.at(keywords[i]).end(), inserter(result, result.begin()));
-        matches = result;
+		set_intersection(recents.keyIdxs.begin(), recents.keyIdxs.end(), keys.at(keywords[i]).begin(), keys.at(keywords[i]).end(), inserter(result, result.begin()));
+        recents.keyIdxs = result;
 	}
 
-	recents.words.push_back(matches.begin());
-    recents.words.push_back(matches.end());
+	recents.words.push_back(recents.keyIdxs.begin());
+    recents.words.push_back(recents.keyIdxs.end());
 
-	cout << "Keyword search: " << matches.size() << " entries found\n";
+	cout << "Keyword search: " << recents.keyIdxs.size() << " entries found\n";
     recents.lastWasTimes = false;
     recents.prevSearch = true;
 }
@@ -418,15 +425,20 @@ void r(vector<Entry> &master, Recent &recents, deque<int> &excerpts) {
 			cout << recents.times[1] - recents.times[0] << " log entries appended\n";
 		}
 		else {
-			for (auto it = recents.words[0]; it != recents.words[1]; ++it) {
-				excerpts.push_back(*it);
-			}
+            if (!recents.words.empty()) {
+                for (auto it = recents.words[0]; it != recents.words[1]; ++it) {
+                    excerpts.push_back(*it);
+                }
 
-			cout << recents.words[1] - recents.words[0] << " log entries appended\n";
+                cout << recents.words[1] - recents.words[0] << " log entries appended\n";
+            }
+            else {
+                cout << "0 log entries appended\n";
+            }
 		}
 	}
     else {
-        cerr << "No recents searches\n";
+        cerr << "No recent searches\n";
     }
 }
 
